@@ -11,32 +11,63 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message=FALSE)
 library(plotly)
 library(dplyr)
 library(tidyr)
+NumOfGenes=3110742714
+Q1Loc=NumOfGenes/4
+Q2Loc=NumOfGenes/2
+Q3Loc=NumOfGenes*3/4
 
-Dataframe=read.table(file = "../results/2021-05-24/histogramTable.TSV.gz", sep = '\t', header = TRUE)
+Dataframe=read.table(file = "../results/2021-05-24/histogramTable.TSV.gz", sep = '\t', header = TRUE)%>%
+  mutate(Genome=ifelse(Genome=="GCA_000001405.28_GRCh38.p13_genomic","Human","Mouse"))
 HumanFreq=Dataframe%>%
-  filter(Genome=="GCA_000001405.28_GRCh38.p13_genomic")
+  filter(Genome=="Human")
 MouseFreq=Dataframe%>%
-  filter(Genome!="GCA_000001405.28_GRCh38.p13_genomic")
+  filter(Genome=="Mouse")
 
-longerVersion=pivot_longer(HumanFreq,X4:X100)%>%
+longerVersion=pivot_longer(Dataframe,X4:X100)%>%
   mutate(x=as.numeric(x),weighted=x*value)
-
 
 numericnames=longerVersion%>%
   mutate(name=as.numeric(substr(name,2,1000000)))
 
-
-
 numericnamesSumer=numericnames%>%
-  group_by(name)%>%
-  summarize(mean=sum(weighted)/sum(value),numkmer=sum(value))%>%
+  group_by(name,Genome)%>%
+  summarize(mean=sum(weighted)/sum(value),numkmer=sum(weighted))%>%
   mutate(random=3000000000/4^name)
+
+longerVersionCum=numericnames%>%
+  group_by(name,Genome)%>%
+  mutate(weighted=ifelse(is.na(weighted),0,weighted))%>%
+  mutate(locater=cumsum(weighted))
+
+#simi histogram data
+Q1=longerVersionCum%>%
+  filter(locater>Q1Loc)%>%
+  group_by(name,Genome)%>%
+  filter(locater==min(locater),weighted!=0)%>%
+  mutate(Loc="Q1")
+Q2=longerVersionCum%>%
+  filter(locater>Q2Loc)%>%
+  group_by(name,Genome)%>%
+  filter(locater==min(locater),weighted!=0)%>%
+  mutate(Loc="Q2")
+Q3=longerVersionCum%>%
+  filter(locater>Q3Loc)%>%
+  group_by(name,Genome)%>%
+  filter(locater==min(locater),weighted!=0)%>%
+  mutate(Loc="Q3")
+quint=rbind(Q1,Q2,Q3)%>%
+  select(-locater)%>%
+  select(-value,-weighted)%>%
+  pivot_wider(names_from = Loc,values_from=x)%>%
+  arrange(name)
 
 ```
 
 
 ```{r Graphics}
-
+quint%>%
+  mutate(name=ifelse(Genome=="Human",name+.4,name))%>%
+  ggplot()+aes(color=Genome,x=name)+geom_point(aes(y=Q2))+scale_y_log10()+geom_segment(aes(xend=name,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")
 
 #4^k
 #so as k increces
@@ -47,7 +78,7 @@ numericnamesSumer=numericnames%>%
 
 
 Dataframe%>%
-  ggplot(aes(x=x,y=X32,color=Genome))+geom_point(alpha=.5)+scale_y_log10()
+  ggplot(aes(x=x,y=X32,color=Genome))+geom_point(alpha=.4)+scale_y_log10()
 
 
 longerVersion%>%
