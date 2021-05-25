@@ -1,0 +1,66 @@
+---
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message=FALSE)
+```
+
+```{r Data,echo=F}
+library(plotly)
+library(dplyr)
+library(tidyr)
+
+Dataframe=read.table(file = "../results/2021-05-24/histogramTable.TSV", sep = '\t', header = TRUE)
+HumanFreq=Dataframe%>%
+  filter(Genome=="GCA_000001405.28_GRCh38.p13_genomic")
+MouseFreq=Dataframe%>%
+  filter(Genome!="GCA_000001405.28_GRCh38.p13_genomic")
+
+longerVersion=pivot_longer(HumanFreq,X4:X100)%>%
+  mutate(x=as.numeric(x),weighted=x*value)
+
+
+numericnames=longerVersion%>%
+  mutate(name=as.numeric(substr(name,2,1000000)))
+
+
+
+numericnamesSumer=numericnames%>%
+  group_by(name)%>%
+  summarize(mean=sum(weighted)/sum(value),numkmer=sum(value))%>%
+  mutate(random=3000000000/4^name)
+
+```
+
+
+```{r Graphics}
+
+
+#4^k
+#so as k increces
+
+#human: 3billion
+#mouse: about the same size, 3.1,2.8
+#might want to be proportional at a later point
+
+
+Dataframe%>%
+  ggplot(aes(x=x,y=X32,color=Genome))+geom_point()+scale_y_log10()
+
+
+longerVersion%>%
+  filter(value!=0)
+
+#8450895/9054271
+
+
+
+
+numericnamesSumer%>%
+  filter(name<20)%>%
+  ggplot()+aes(x=name)+geom_point(aes(y=mean))+scale_y_log10()+geom_point(aes(y=random,color="3 billion /4^k"))
+
+
+```
