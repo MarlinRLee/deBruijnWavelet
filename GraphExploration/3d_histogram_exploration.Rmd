@@ -32,7 +32,7 @@ numericnames=longerVersion%>%
 numericnamesSumer=numericnames%>%
   group_by(name,Genome)%>%
   summarize(mean=sum(weighted)/sum(value),numkmer=sum(weighted))%>%
-  mutate(random=3000000000/4^name)
+  mutate(random=NumOfGenes/4^name)
 
 longerVersionCum=numericnames%>%
   group_by(name,Genome)%>%
@@ -69,6 +69,11 @@ quint%>%
   mutate(name=ifelse(Genome=="Human",name+.4,name))%>%
   ggplot()+aes(color=Genome,x=name)+geom_point(aes(y=Q2))+scale_y_log10()+geom_segment(aes(xend=name,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")
 
+quint%>%
+  mutate(name=ifelse(Genome=="Human",name+.4,name))%>%
+  filter(name<60)%>%
+  ggplot()+aes(color=Genome,x=name)+geom_point(aes(y=Q2))+geom_segment(aes(xend=name,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")+scale_y_log10()
+
 #4^k
 #so as k increces
 
@@ -81,12 +86,8 @@ Dataframe%>%
   ggplot(aes(x=x,y=X32,color=Genome))+geom_point(alpha=.4)+scale_y_log10()
 
 
-longerVersion%>%
-  filter(value!=0)
-
-#8450895/9054271
-
-
+#longerVersion%>%
+#  filter(value==0)
 
 
 numericnamesSumer%>%
