@@ -11,68 +11,77 @@ knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message=FALSE)
 library(plotly)
 library(dplyr)
 library(tidyr)
-NumOfGenes=3110742714
+
+
+SumTab=read.table(file = "../results/2021-05-25/statsTable.TSV", sep = '\t', header = TRUE)%>%
+  mutate(Genome=ifelse(Genome=="GCA_000001405.28_GRCh38.p13_genomic","Human","Mouse"))
+SumTabLonger=pivot_longer(SumTab,k_4:k_100,names_to ="Kmer")%>%
+  mutate(Kmer=as.numeric(substr(Kmer,3,1000000)))%>%
+  pivot_wider(names_from = SummaryStat,values_from = value)
+  
+
+NumOfGenes=(3110742714+2654620728)/2
 Q1Loc=NumOfGenes/4
 Q2Loc=NumOfGenes/2
 Q3Loc=NumOfGenes*3/4
 
-Dataframe=read.table(file = "../results/2021-05-24/histogramTable.TSV.gz", sep = '\t', header = TRUE)%>%
+Dataframe=read.table(file = "../results/2021-05-25/histogramTable.tsv.gz", sep = '\t', header = TRUE)%>%
   mutate(Genome=ifelse(Genome=="GCA_000001405.28_GRCh38.p13_genomic","Human","Mouse"))
 HumanFreq=Dataframe%>%
   filter(Genome=="Human")
 MouseFreq=Dataframe%>%
   filter(Genome=="Mouse")
 
-longerVersion=pivot_longer(Dataframe,X4:X100)%>%
+longerVersion=pivot_longer(Dataframe,k_4:k_100,names_to = "Kmer")%>%
   mutate(x=as.numeric(x),weighted=x*value)
 
 numericnames=longerVersion%>%
-  mutate(name=as.numeric(substr(name,2,1000000)))
+  mutate(Kmer=as.numeric(substr(Kmer,3,1000000)))
 
 numericnamesSumer=numericnames%>%
-  group_by(name,Genome)%>%
+  group_by(Kmer,Genome)%>%
   summarize(mean=sum(weighted)/sum(value),numkmer=sum(weighted))%>%
-  mutate(random=NumOfGenes/4^name)
+  mutate(random=NumOfGenes/4^Kmer)
 
 longerVersionCum=numericnames%>%
-  group_by(name,Genome)%>%
+  group_by(Kmer,Genome)%>%
   mutate(weighted=ifelse(is.na(weighted),0,weighted))%>%
   mutate(locater=cumsum(weighted))
 
 #simi histogram data
 Q1=longerVersionCum%>%
   filter(locater>Q1Loc)%>%
-  group_by(name,Genome)%>%
+  group_by(Kmer,Genome)%>%
   filter(locater==min(locater),weighted!=0)%>%
   mutate(Loc="Q1")
 Q2=longerVersionCum%>%
   filter(locater>Q2Loc)%>%
-  group_by(name,Genome)%>%
+  group_by(Kmer,Genome)%>%
   filter(locater==min(locater),weighted!=0)%>%
   mutate(Loc="Q2")
 Q3=longerVersionCum%>%
   filter(locater>Q3Loc)%>%
-  group_by(name,Genome)%>%
+  group_by(Kmer,Genome)%>%
   filter(locater==min(locater),weighted!=0)%>%
   mutate(Loc="Q3")
 quint=rbind(Q1,Q2,Q3)%>%
   select(-locater)%>%
   select(-value,-weighted)%>%
   pivot_wider(names_from = Loc,values_from=x)%>%
-  arrange(name)
+  arrange(Kmer)
 
 ```
 
 
 ```{r Graphics}
 quint%>%
-  mutate(name=ifelse(Genome=="Human",name+.4,name))%>%
-  ggplot()+aes(color=Genome,x=name)+geom_point(aes(y=Q2))+scale_y_log10()+geom_segment(aes(xend=name,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")
+  mutate(Kmer=ifelse(Genome=="Human",Kmer+.4,Kmer))%>%
+  ggplot()+aes(color=Genome,x=Kmer)+geom_point(aes(y=Q2))+scale_y_log10()+geom_segment(aes(xend=Kmer,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")
 
 quint%>%
-  mutate(name=ifelse(Genome=="Human",name+.4,name))%>%
-  filter(name<60)%>%
-  ggplot()+aes(color=Genome,x=name)+geom_point(aes(y=Q2))+geom_segment(aes(xend=name,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")+scale_y_log10()
+  mutate(Kmer=ifelse(Genome=="Human",Kmer+.4,Kmer))%>%
+  filter(Kmer<60)%>%
+  ggplot()+aes(color=Genome,x=Kmer)+geom_point(aes(y=Q2))+geom_segment(aes(xend=Kmer,y=Q1,yend=Q3))+xlab("Kmer Size")+ylab("frequency")+scale_y_log10()
 
 #4^k
 #so as k increces
@@ -81,10 +90,11 @@ quint%>%
 #mouse: about the same size, 3.1,2.8
 #might want to be proportional at a later point
 for (i in 0:9){
+  break
   print(i)
   ploter=numericnames%>%
-    filter((name-1)%/%10==i)%>%
-    ggplot(aes(x=x,y=value,color=Genome))+geom_point(alpha=.4)+scale_y_log10()+scale_x_log10()+ggtitle(paste("histo of",i*10+1,"mer","to ",i*10+10,"mer"))+xlab("repetitions of kmer")+ylab("number of Kmers")+facet_wrap(~name,scales="free")
+    filter((Kmer-1)%/%10==i)%>%
+    ggplot(aes(x=x,y=value,color=Genome))+geom_point(alpha=.4)+scale_y_log10()+scale_x_log10()+ggtitle(paste("histo of",i*10+1,"mer","to ",i*10+10,"mer"))+xlab("repetitions of kmer")+ylab("number of Kmers")+facet_wrap(~Kmer,scales="free")
   filename=paste("histo of",i*10+1,"mer","to ",i*10+10,"mer")
   ggsave(filename,plot=ploter,device="png")
 }
@@ -97,16 +107,27 @@ for (i in 0:9){
 
 
 numericnamesSumer%>%
-  filter(name<20)%>%
-  ggplot()+aes(x=name)+geom_point(aes(y=mean))+scale_y_log10()+geom_point(aes(y=random,color="3 billion /4^k"))
+  filter(Kmer<20)%>%
+  ggplot()+aes(x=Kmer)+geom_point(aes(y=mean))+scale_y_log10()+geom_point(aes(y=random,color="3 billion /4^k"))
 
 
 #heatmap
 numericnames%>%
   filter(Genome=="Human",x<1000)%>%
-  ggplot(aes(x=name)) + geom_tile(aes(y=x, fill= log(value)),na.rm=T)+scale_fill_continuous(type = "viridis")+ggtitle("Human frequency heatmap")
+  ggplot(aes(x=Kmer)) + geom_tile(aes(y=x, fill= log(value)),na.rm=T)+scale_fill_continuous(type = "viridis")+ggtitle("Human frequency heatmap")
 numericnames%>%
   filter(Genome=="Mouse",x<1000)%>%
-  ggplot(aes(x=name)) + geom_tile(aes(y=x, fill= log(value)),na.rm=T)+scale_fill_continuous(type = "viridis")+ggtitle("Mouse frequency heatmap")
+  ggplot(aes(x=Kmer)) + geom_tile(aes(y=x, fill= log(value)),na.rm=T)+scale_fill_continuous(type = "viridis")+ggtitle("Mouse frequency heatmap")
 #geom_raster
+
+SumTabLonger%>%
+  ggplot()+aes(x=Kmer,y=Distinct/Total,color=Genome)+geom_point()+scale_y_log10()
+SumTabLonger%>%
+  ggplot()+aes(x=Kmer,y=Distinct/Total,color=Genome)+geom_point()
+SumTabLonger%>%
+  ggplot()+aes(x=Kmer,y=Max_count,color=Genome)+geom_point()+scale_y_log10()
+SumTabLonger%>%
+  ggplot()+aes(x=Kmer,y=Max_count,color=Genome)+geom_point()
+SumTabLonger%>%
+  ggplot()+aes(x=Kmer,y=Unique/Total,color=Genome)+geom_point()
 ```
