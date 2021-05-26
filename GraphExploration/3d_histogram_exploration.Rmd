@@ -81,12 +81,11 @@ quint%>%
 #mouse: about the same size, 3.1,2.8
 #might want to be proportional at a later point
 for (i in 0:9){
-  break
   print(i)
   ploter=numericnames%>%
     filter((name-1)%/%10==i)%>%
-    ggplot(aes(x=x,y=value,color=Genome))+geom_point(alpha=.4)+scale_y_log10()+scale_x_log10()+ggtitle(paste("histo of",i*10,"mer","to ",i*10+9,"mer"))+facet_wrap(~name,scales="free")
-  filename=paste("histo of",i*10,"mer","to ",i*10+9,"mer")
+    ggplot(aes(x=x,y=value,color=Genome))+geom_point(alpha=.4)+scale_y_log10()+scale_x_log10()+ggtitle(paste("histo of",i*10+1,"mer","to ",i*10+10,"mer"))+xlab("repetitions of kmer")+ylab("number of Kmers")+facet_wrap(~name,scales="free")
+  filename=paste("histo of",i*10+1,"mer","to ",i*10+10,"mer")
   ggsave(filename,plot=ploter,device="png")
 }
 
